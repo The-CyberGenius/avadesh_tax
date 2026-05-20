@@ -24,11 +24,21 @@ export default function Navbar() {
     setDropOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    if (open) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [open]);
+
   return (
     <header
       className={`fixed top-0 inset-x-0 z-50 transition-all duration-500 ${
-        scrolled
-          ? "bg-navy-950/80 backdrop-blur-xl border-b border-gold-500/10 shadow-[0_8px_40px_-20px_rgba(11,18,48,0.18)]"
+        scrolled || open
+          ? "bg-navy-950/95 backdrop-blur-xl border-b border-gold-500/10 shadow-[0_8px_40px_-20px_rgba(11,18,48,0.18)]"
           : "bg-transparent"
       }`}
     >
@@ -183,7 +193,7 @@ export default function Navbar() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="lg:hidden glass-strong border-t border-gold-500/10 overflow-hidden"
+            className="lg:hidden bg-navy-950 border-t border-gold-500/15 overflow-hidden shadow-2xl"
           >
             <nav className="px-4 py-4 flex flex-col gap-1">
               {NAV_LINKS.map((link) => {

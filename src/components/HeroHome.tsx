@@ -5,7 +5,6 @@ import {
   useMotionValue,
   useSpring,
   useTransform,
-  AnimatePresence,
 } from "framer-motion";
 import {
   ArrowRight,
@@ -88,9 +87,50 @@ function Sparkline() {
   );
 }
 
+function useTypewriter(words: string[], opts?: { typeMs?: number; eraseMs?: number; holdMs?: number; startHoldMs?: number }) {
+  const typeMs = opts?.typeMs ?? 85;
+  const eraseMs = opts?.eraseMs ?? 40;
+  const holdMs = opts?.holdMs ?? 1400;
+  const startHoldMs = opts?.startHoldMs ?? 350;
+  const [text, setText] = useState("");
+  const [wordIdx, setWordIdx] = useState(0);
+  const [phase, setPhase] = useState<"typing" | "holding" | "erasing">("typing");
+
+  useEffect(() => {
+    if (!words.length) return;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) {
+      setText(words[0]);
+      return;
+    }
+    const current = words[wordIdx % words.length];
+    let timeout: ReturnType<typeof setTimeout>;
+
+    if (phase === "typing") {
+      if (text.length < current.length) {
+        timeout = setTimeout(() => setText(current.slice(0, text.length + 1)), typeMs);
+      } else {
+        timeout = setTimeout(() => setPhase("holding"), startHoldMs);
+      }
+    } else if (phase === "holding") {
+      timeout = setTimeout(() => setPhase("erasing"), holdMs);
+    } else {
+      if (text.length > 0) {
+        timeout = setTimeout(() => setText(current.slice(0, text.length - 1)), eraseMs);
+      } else {
+        setWordIdx((i) => (i + 1) % words.length);
+        setPhase("typing");
+      }
+    }
+    return () => clearTimeout(timeout);
+  }, [text, phase, wordIdx, words, typeMs, eraseMs, holdMs, startHoldMs]);
+
+  return text;
+}
+
 export default function HeroHome() {
-  const [wordIndex, setWordIndex] = useState(0);
   const heroRef = useRef<HTMLDivElement>(null);
+  const typed = useTypewriter(ROTATING_WORDS);
 
   // Reduced-motion guard
   const prefersReducedMotion = useRef(false);
@@ -112,13 +152,6 @@ export default function HeroHome() {
   const cardRX = useTransform(smy, [-1, 1], [3.5, -3.5]);
   const cardRY = useTransform(smx, [-1, 1], [-3.5, 3.5]);
 
-  useEffect(() => {
-    if (prefersReducedMotion.current) return;
-    const id = setInterval(() => {
-      setWordIndex((i) => (i + 1) % ROTATING_WORDS.length);
-    }, 2400);
-    return () => clearInterval(id);
-  }, []);
 
   return (
     <>
@@ -190,24 +223,22 @@ export default function HeroHome() {
             >
               <span className="block">
                 Precision{" "}
-                {/* Rotating word — clipped slot with reserved width so no reflow / leak */}
-                <span className="relative inline-block align-bottom overflow-hidden">
-                  {/* invisible spacer reserves the longest word's width + line-height */}
+                {/* Typewriter — slot reserves width of longest word so the line never reflows */}
+                <span className="relative inline-block align-bottom">
                   <span aria-hidden className="invisible whitespace-nowrap">
                     {LONGEST_WORD}
                   </span>
-                  <AnimatePresence mode="wait" initial={false}>
-                    <motion.span
-                      key={wordIndex}
-                      initial={{ y: "100%", opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      exit={{ y: "-100%", opacity: 0 }}
-                      transition={{ duration: 0.45, ease: [0.2, 0.8, 0.2, 1] }}
-                      className="absolute inset-0 text-gold-gradient whitespace-nowrap"
-                    >
-                      {ROTATING_WORDS[wordIndex]}
-                    </motion.span>
-                  </AnimatePresence>
+                  <span
+                    className="absolute inset-0 text-gold-gradient whitespace-nowrap"
+                    aria-live="polite"
+                  >
+                    {typed}
+                    <span
+                      className="caret inline-block w-[3px] align-baseline ml-[2px] bg-gold-400"
+                      style={{ height: "0.85em", transform: "translateY(0.1em)" }}
+                      aria-hidden
+                    />
+                  </span>
                 </span>
               </span>
               <span className="block mt-1">
